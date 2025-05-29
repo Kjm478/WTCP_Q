@@ -48,8 +48,8 @@ class StateMachine:
 
 # client transitions: (current_state, received_pdu) -> next_state
 CLIENT_TRANSITIONS = {
-    (ClientState.INITIAL, PDUType.AUTH_REQ): ClientState.AUTH_PENDING,
-    (ClientState.AUTH_PENDING, PDUType.AUTH_RESP): ClientState.OPERATIONAL,
+    (ClientState.INITIAL, PDUType.AUTH_REQUEST): ClientState.AUTH_PENDING,
+    (ClientState.AUTH_PENDING, PDUType.AUTH_REQUEST): ClientState.OPERATIONAL,
     (ClientState.OPERATIONAL, PDUType.CONTROL): ClientState.OPERATIONAL,
     (ClientState.OPERATIONAL, PDUType.EMERGENCY): ClientState.TERMINATING,
     (ClientState.OPERATIONAL, PDUType.TERMINATE): ClientState.TERMINATED,
@@ -58,10 +58,10 @@ CLIENT_TRANSITIONS = {
 
 # server transitions: (current_state, received_pdu) -> next_state
 SERVER_TRANSITIONS = {
-    (ServerState.LISTENING, PDUType.AUTH_REQ): ServerState.AUTHORIZING,
-    (ServerState.AUTHORIZING, PDUType.AUTH_REQ): ServerState.AUTHORIZING,
-    (ServerState.AUTHORIZING, PDUType.AUTH_RESP): ServerState.OPERATIONAL,
-    (ServerState.OPERATIONAL, PDUType.TELEMETRY): ServerState.OPERATIONAL,
+    (ServerState.LISTENING, PDUType.AUTH_REQUEST): ServerState.AUTHORIZING,
+    (ServerState.AUTHORIZING, PDUType.AUTH_REQUEST): ServerState.AUTHORIZING,
+    (ServerState.AUTHORIZING, PDUType.AUTH_RESPONSE): ServerState.OPERATIONAL,
+    (ServerState.OPERATIONAL, PDUType.TELEMETRY_REQUEST): ServerState.OPERATIONAL,
     (ServerState.OPERATIONAL, PDUType.EMERGENCY): ServerState.TERMINATING,
     (ServerState.OPERATIONAL, PDUType.TERMINATE): ServerState.TERMINATED,
     (ServerState.TERMINATING, PDUType.TERMINATE): ServerState.TERMINATED,
