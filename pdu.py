@@ -71,7 +71,7 @@ class PDU:
         payload = device_uuid.bytes
         payload += struct.pack("!I", sampling_rate)
         payload += struct.pack("!f", geofence_radius)
-        return PDU(PDUType.AUTH_REQ, version=1, session_id=0, payload=payload)
+        return PDU(PDUType.AUTH_REQUEST, version=1, session_id=0, payload=payload)
 
     @staticmethod
     def build_telemetry(timestamp: int, lat: float, lon: float,
@@ -79,7 +79,7 @@ class PDU:
         # timestamp: uint64, lat/lon: float32, activity: uint16, battery: uint8, diag_flags: uint8
         payload = struct.pack("!Q f f H B B",
                               timestamp, lat, lon, activity, battery, diag_flags)
-        return PDU(PDUType.TELEMETRY, version=1, session_id=0, payload=payload)
+        return PDU(PDUType.TELEMETRY_REQUEST, version=1, session_id=0, payload=payload)
 
     @staticmethod
     def build_control(new_rate: int = None, new_radius: float = None) -> "PDU":
