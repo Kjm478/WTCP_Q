@@ -3,12 +3,12 @@ import struct
 from uuid import UUID
 
 class PDUType(Enum):
-    AUTH_REQUEST = auto()
-    AUTH_RESPONSE = auto()
-    TELEMETRY_REQUEST = auto()
-    CONTROL = auto()
-    EMERGENCY = auto()
-    TERMINATE = auto()
+    AUTH_REQUEST = 0x01
+    AUTH_RESPONSE = 0x02
+    TELEMETRY_REQUEST = 0x03
+    CONTROL = 0x04
+    EMERGENCY = 0x05
+    TERMINATE = 0x06
     
 class PDU:
     """

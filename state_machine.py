@@ -49,7 +49,7 @@ class StateMachine:
 # client transitions: (current_state, received_pdu) -> next_state
 CLIENT_TRANSITIONS = {
     (ClientState.INITIAL, PDUType.AUTH_REQUEST): ClientState.AUTH_PENDING,
-    (ClientState.AUTH_PENDING, PDUType.AUTH_REQUEST): ClientState.OPERATIONAL,
+    (ClientState.AUTH_PENDING, PDUType.AUTH_RESPONSE): ClientState.OPERATIONAL,
     (ClientState.OPERATIONAL, PDUType.CONTROL): ClientState.OPERATIONAL,
     (ClientState.OPERATIONAL, PDUType.EMERGENCY): ClientState.TERMINATING,
     (ClientState.OPERATIONAL, PDUType.TERMINATE): ClientState.TERMINATED,
