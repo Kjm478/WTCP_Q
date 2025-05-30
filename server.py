@@ -58,7 +58,7 @@ class WTCPServerProtocol(QuicConnectionProtocol):
         self._quic.send_stream_data(sid, pdu.to_bytes(), end_stream=False)
 
     def send_auth_resp(self):
-        pdu = PDU(PDUType.AUTH_RESPONSE, version=1, session_id=1234)
+        pdu = PDU(PDUType.AUTH_RESPONSE, version=1, session_id= 1234)
         self.send_pdu(pdu)
         try:
             old_state, new_state = self.state_machine.on_pdu(pdu)

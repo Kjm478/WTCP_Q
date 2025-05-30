@@ -73,7 +73,7 @@ class WTCPClientProtocol(QuicConnectionProtocol):
     async def send_telemetry(self):
         while self.state_machine.state == ClientState.OPERATIONAL:
             timestamp = int(time.time())
-            pdu = PDU.build_telemetry(timestamp, lat=0.0, lon=0.0,
+            pdu = PDU.build_telemetry(self.session_id,timestamp, lat=0.0, lon=0.0,
                                       activity=0, battery=100, diag_flags=0)
             sid = self.stream_for(pdu.pdu_type)
             print(f"Sending telemetry PDU on stream(ts= {timestamp}) {sid}: {pdu}")
