@@ -30,16 +30,16 @@ class StateMachine:
     def __init__(self, initial_state, transitions):
         
         self.state = initial_state
-        self._transtions = transitions
+        self._transitions = transitions
         
     def on_pdu(self, pdu): 
         """
         process an incoming PDU and transition state if valid.
         """
         key = (self.state, pdu.pdu_type)
-        if key in self._transtions:
+        if key in self._transitions:
             old_state = self.state
-            self.state = self._transtions[key]
+            self.state = self._transitions[key]
             
             return old_state, self.state
         else: 
@@ -52,15 +52,15 @@ CLIENT_TRANSITIONS = {
     (ClientState.AUTH_PENDING, PDUType.AUTH_RESPONSE): ClientState.OPERATIONAL,
     (ClientState.OPERATIONAL, PDUType.CONTROL): ClientState.OPERATIONAL,
     (ClientState.OPERATIONAL, PDUType.EMERGENCY): ClientState.TERMINATING,
-    (ClientState.OPERATIONAL, PDUType.TERMINATE): ClientState.TERMINATED,
+    (ClientState.OPERATIONAL, PDUType.TERMINATE): ClientState.TERMINATING,
     (ClientState.TERMINATING, PDUType.TERMINATE): ClientState.TERMINATED,
 }
 
 # server transitions: (current_state, received_pdu) -> next_state
 SERVER_TRANSITIONS = {
     (ServerState.LISTENING, PDUType.AUTH_REQUEST): ServerState.AUTHORIZING,
-    (ServerState.AUTHORIZING, PDUType.AUTH_REQUEST): ServerState.AUTHORIZING,
     (ServerState.AUTHORIZING, PDUType.AUTH_RESPONSE): ServerState.OPERATIONAL,
+    (ServerState.AUTHORIZING, PDUType.TELEMETRY_REQUEST): ServerState.OPERATIONAL,
     (ServerState.OPERATIONAL, PDUType.TELEMETRY_REQUEST): ServerState.OPERATIONAL,
     (ServerState.OPERATIONAL, PDUType.EMERGENCY): ServerState.TERMINATING,
     (ServerState.OPERATIONAL, PDUType.TERMINATE): ServerState.TERMINATED,

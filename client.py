@@ -31,6 +31,8 @@ class WTCPClientProtocol(QuicConnectionProtocol):
                 self.last_pdu_time = time.time()
                 print(f"Transitioned from {old_state} to {new_state} with PDU: {pdu}")
                 if pdu.pdu_type == PDUType.AUTH_RESPONSE:
+                    info = PDU.parse_auth_resp(pdu.payload)
+                    self.session_id = info['session_id']
                     #start telemetry and idle watchers
                     asyncio.create_task(self.send_telemetry())
                     asyncio.create_task(self.idle_watcher())
@@ -97,7 +99,7 @@ class WTCPClientProtocol(QuicConnectionProtocol):
     async def idle_watcher(self):
         while self.state_machine.state == ClientState.OPERATIONAL:
             await asyncio.sleep(1)
-            if time.time() - self.last_pdu_time > 30:
+            if time.time() - self.last_pdu_time > :
                 print("Idle timeout — sending TERMINATE")
                 await self.send_terminate()
                 break

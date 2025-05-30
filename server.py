@@ -19,6 +19,7 @@ class WTCPServerProtocol(QuicConnectionProtocol):
         self.state_machine = create_server_state_machine()
         self.telemetry = []
         self.telemetry_file = telemetry_file
+        self.next_session = 1
 
     def quic_event_received(self, event):
       
@@ -38,6 +39,10 @@ class WTCPServerProtocol(QuicConnectionProtocol):
             elif sid == STREAM_IDS['telemetry']:
                 _, new = self.state_machine.on_pdu(pdu)
                 self.telemetry.append(PDU.parse_telemetry(pdu.payload))
+            self.telemetry_count = getattr(self, 'telemetry_count', 0) + 1
+            if self.telemetry_count % 10 == 0:
+                ctl = PDU.build_control(pdu.session_id)
+                self.send_pdu(ctl)
             # EMERGENCY stream
             elif sid == STREAM_IDS['emergency']:
                 _, new = self.state_machine.on_pdu(pdu)
@@ -58,26 +63,29 @@ class WTCPServerProtocol(QuicConnectionProtocol):
         self._quic.send_stream_data(sid, pdu.to_bytes(), end_stream=False)
 
     def send_auth_resp(self):
-        pdu = PDU(PDUType.AUTH_RESPONSE, version=1, session_id= 1234)
+        sid = self.next_session
+        pdu = PDU.build_auth_resp(status=0, session_id=sid)
+        self.next_session += 1
+        print("Sending AUTH_RESPONSE with payload len:", len(pdu.payload))
         self.send_pdu(pdu)
-        try:
-            old_state, new_state = self.state_machine.on_pdu(pdu)
-            print(f"FSM: {old_state.name} → {new_state.name} on AUTH_RESPONSE")
-        except StateMachineError as e:
-            print(f"Error advancing FSM on AUTH_RESPONSE: {e}")
-
+        self.state_machine.on_pdu(pdu)  # transition to OPERATIONAL state
+        
+        
     def send_terminate(self):
         pdu = PDU(PDUType.TERMINATE, version=1, session_id=0)
         self.send_pdu(pdu)
+        self.state_machine.on_pdu(pdu)
 
     def dump_telemetry(self):
         if not self.telemetry:
             return
         # write a CSV of the parsed telemetry dicts
-        with open(self.telemetry_file, 'w', newline='') as f:
+        with open(self.telemetry_file, 'a', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=self.telemetry[0].keys())
-            writer.writeheader()
+            if f.tell() == 0:
+                writer.writeheader()
             writer.writerows(self.telemetry)
+            print(f"Telemetry written to {self.telemetry_file}")
 
 async def main():
     config = QuicConfiguration(is_client=False)

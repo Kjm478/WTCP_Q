@@ -72,31 +72,32 @@ class PDU:
         payload += struct.pack("!I", sampling_rate)
         payload += struct.pack("!f", geofence_radius)
         return PDU(PDUType.AUTH_REQUEST, version=1, session_id=0, payload=payload)
-
+    
+    @staticmethod
     def build_telemetry(session_id: int,timestamp: int, lat: float, lon: float,
                         activity: int, battery: int, diag_flags: int) -> "PDU":
         # timestamp: uint64, lat/lon: float32, activity: uint16, battery: uint8, diag_flags: uint8
         payload = struct.pack("!Q f f H B B",
                               timestamp, lat, lon, activity, battery, diag_flags)
-        return PDU(PDUType.TELEMETRY_REQUEST, version=1, session_id=session_id, payload=payload)
+        return PDU(PDUType.TELEMETRY_REQUEST, version=1,session_id= session_id, payload=payload)
 
     @staticmethod
-    def build_control(new_rate: int = None, new_radius: float = None) -> "PDU":
+    def build_control(session_id: int , new_rate: int = None, new_radius: float = None) -> "PDU":
         # CONTROL TLVs
         tlv = b""
         if new_rate is not None:
             tlv += struct.pack("!B B I", 0x01, 4, new_rate)
         if new_radius is not None:
             tlv += struct.pack("!B B f", 0x02, 4, new_radius)
-        return PDU(PDUType.CONTROL, version=1, session_id=0, payload=tlv)
+        return PDU(PDUType.CONTROL, version=1, session_id=session_id, payload=tlv)
 
     @staticmethod
-    def build_emergency(timestamp: int, alert_code: int, details: str="") -> "PDU":
+    def build_emergency(session_id:int, timestamp: int, alert_code: int, details: str="") -> "PDU":
         # timestamp: uint64, alert_code: uint8, details: UTF-8 string
         detail_bytes = details.encode("utf-8")
         payload = struct.pack("!Q B B", timestamp, alert_code, len(detail_bytes))
         payload += detail_bytes
-        return PDU(PDUType.EMERGENCY, version=1, session_id=0, payload=payload)
+        return PDU(PDUType.EMERGENCY, version=1, session_id=session_id, payload=payload)
 
     @staticmethod
     def parse_auth_resp(payload: bytes):
@@ -105,16 +106,15 @@ class PDU:
         return {"status": status, "session_id": session_id}
 
     @staticmethod
+    def build_auth_resp(status: int, session_id: int) -> "PDU":
+        payload = struct.pack("!B I", status, session_id)  
+        return PDU(PDUType.AUTH_RESPONSE, 1, session_id, payload)
+
+    @staticmethod
     def parse_telemetry(payload: bytes):
-        fields = struct.unpack("!Q f f H B B", payload)
-        return {
-            "timestamp": fields[0],
-            "latitude":   fields[1],
-            "longitude":  fields[2],
-            "activity":   fields[3],
-            "battery":    fields[4],
-            "diag_flags": fields[5],
-        }
+        ts, lat, lon, act, bat, flags = struct.unpack("!Q f f H B B", payload)
+        return {"timestamp": ts, "latitude": lat, "longitude": lon,
+                "activity": act, "battery": bat, "diag_flags": flags}
 
     @staticmethod
     def parse_control(payload: bytes):
