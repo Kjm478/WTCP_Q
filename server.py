@@ -6,6 +6,7 @@ from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.events import StreamDataReceived, ConnectionTerminated
 from pdu import PDU, PDUType
 from state_machine import create_server_state_machine, StateMachineError
+import sys
 
 STREAM_IDS = {
     'control': 0,
@@ -18,8 +19,10 @@ class WTCPServerProtocol(QuicConnectionProtocol):
         super().__init__(*args, **kwargs)
         self.state_machine = create_server_state_machine()
         self.telemetry = []
+        self.emergencies = []
         self.telemetry_file = telemetry_file
         self.next_session = 1
+        self.wake = asyncio.create_task(self.wake_loop())
 
     def quic_event_received(self, event):
       
@@ -46,6 +49,7 @@ class WTCPServerProtocol(QuicConnectionProtocol):
             # EMERGENCY stream
             elif sid == STREAM_IDS['emergency']:
                 _, new = self.state_machine.on_pdu(pdu)
+                self.emergencies.append(PDU.parse_emergency(pdu.payload))
                 print("EMERGENCY from client:", PDU.parse_emergency(pdu.payload))
                 self.send_terminate()
 
@@ -70,6 +74,14 @@ class WTCPServerProtocol(QuicConnectionProtocol):
         self.send_pdu(pdu)
         self.state_machine.on_pdu(pdu)  # transition to OPERATIONAL state
         
+    async def wake_loop(self):
+        while True: 
+            await asyncio.sleep(60)  # wake every 60 seconds
+            if self.state_machine.state == 'OPERATIONAL':
+                pdu = PDU.build_wake(session_id=self.next_session - 1)
+                self.send_pdu(pdu)
+                print("Sent WAKE PDU to client")
+        
         
     def send_terminate(self):
         pdu = PDU(PDUType.TERMINATE, version=1, session_id=0)
@@ -77,25 +89,52 @@ class WTCPServerProtocol(QuicConnectionProtocol):
         self.state_machine.on_pdu(pdu)
 
     def dump_telemetry(self):
-        if not self.telemetry:
-            return
-        # write a CSV of the parsed telemetry dicts
-        with open(self.telemetry_file, 'a', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=self.telemetry[0].keys())
-            if f.tell() == 0:
-                writer.writeheader()
-            writer.writerows(self.telemetry)
-            print(f"Telemetry written to {self.telemetry_file}")
+        if  self.telemetry:
+            # write a CSV of the parsed telemetry dicts
+            with open(self.telemetry_file, 'a', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=self.telemetry[0].keys())
+                if f.tell() == 0:
+                    writer.writeheader()
+                writer.writerows(self.telemetry)
+                print(f"Telemetry written to {self.telemetry_file}")
+        if self.emergencies:
+            with open("emergency.csv","a",newline="") as f:
+                wr = csv.DictWriter(f,self.emergencies[0].keys())
+                if f.tell()==0: wr.writeheader()
+                wr.writerows(self.emergencies)
+        print("CSV flushed.")
+        
+#interactive command line interface for server control
+async def stdin_cmd(server: WTCPServerProtocol):
+    loop = asyncio.get_event_loop()
+    reader = asyncio.StreamReader()
+    protocol = asyncio.StreamReaderProtocol(reader)
+    await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+    while True:
+        line = (await reader.readline()).decode().strip().split()
+        if not line: continue
+        cmd, *args = line
+        if cmd == "r" and args:
+            server.send_pdu(PDU.build_control(0,new_rate=int(args[0])))
+        elif cmd == "g" and args:
+            server.send_pdu(PDU.build_control(0,new_radius=float(args[0])))
+        elif cmd == "sleep":
+            server.send_pdu(PDU.build_sleep_cmd(0,wake=False))
+        elif cmd == "wake":
+            server.send_pdu(PDU.build_sleep_cmd(0,wake=True))
+        else:
+            print("Commands:  r <rate> | g <radius> | sleep | wake")
 
 async def main():
-    config = QuicConfiguration(is_client=False)
-    config.load_cert_chain(certfile="cert.pem", keyfile="key.pem")
-    await serve(
-        host="0.0.0.0", port=4433,
-        configuration=config,
-        create_protocol=lambda *args, **kwargs: WTCPServerProtocol(*args, telemetry_file="telemetry.csv", **kwargs)
-    )
-    await asyncio.Event().wait() # keep the server running indefinitely
+    cfg = QuicConfiguration(is_client=False)
+    cfg.load_cert_chain("cert.pem","key.pem")
+    server_proto = None
+    async def factory(*a, **k):
+        nonlocal server_proto
+        server_proto = WTCPServerProtocol(*a, **k); return server_proto
+    await serve("0.0.0.0",4433,configuration=cfg,create_protocol=factory)
+    print("WTCP server on :4433 — type 'help' for commands")
+    await stdin_cmd(server_proto)
 
 if __name__ == "__main__":
     print("Starting WTCP server on port 4433...")

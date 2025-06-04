@@ -7,6 +7,7 @@ class ClientState(Enum):
     OPERATIONAL = auto()
     TERMINATING = auto()
     TERMINATED = auto()
+    SLEEPING = auto()
     
     
     
@@ -48,12 +49,14 @@ class StateMachine:
 
 # client transitions: (current_state, received_pdu) -> next_state
 CLIENT_TRANSITIONS = {
-    (ClientState.INITIAL, PDUType.AUTH_REQUEST): ClientState.AUTH_PENDING,
-    (ClientState.AUTH_PENDING, PDUType.AUTH_RESPONSE): ClientState.OPERATIONAL,
-    (ClientState.OPERATIONAL, PDUType.CONTROL): ClientState.OPERATIONAL,
-    (ClientState.OPERATIONAL, PDUType.EMERGENCY): ClientState.TERMINATING,
-    (ClientState.OPERATIONAL, PDUType.TERMINATE): ClientState.TERMINATING,
-    (ClientState.TERMINATING, PDUType.TERMINATE): ClientState.TERMINATED,
+    (ClientState.INITIAL,     PDUType.AUTH_REQUEST)    : ClientState.AUTH_PENDING,
+    (ClientState.AUTH_PENDING,PDUType.AUTH_RESPONSE)   : ClientState.OPERATIONAL,
+    (ClientState.OPERATIONAL, PDUType.CONTROL)         : ClientState.OPERATIONAL,
+    (ClientState.OPERATIONAL, PDUType.SLEEP)           : ClientState.SLEEPING,
+    (ClientState.SLEEPING,    PDUType.SLEEP)           : ClientState.OPERATIONAL,
+    (ClientState.OPERATIONAL, PDUType.EMERGENCY)       : ClientState.TERMINATING,
+    (ClientState.OPERATIONAL, PDUType.TERMINATE)       : ClientState.TERMINATING,
+    (ClientState.TERMINATING, PDUType.TERMINATE)       : ClientState.TERMINATED,
 }
 
 # server transitions: (current_state, received_pdu) -> next_state

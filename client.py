@@ -42,6 +42,16 @@ class WTCPClientProtocol(QuicConnectionProtocol):
                 elif pdu.pdu_type == PDUType.EMERGENCY:
                     print("Emergency PDU received, transitioning to TERMINATING state.")
                     asyncio.create_task(self.send_terminate())
+                elif pdu.pdu_type == PDUType.SLEEP: 
+                    print("Received SLEEP PDU, transitioning to SLEEPING state.")
+                    wake = PDU.parse_sleep(pdu.payload)
+                    if wake and self.state_machine.state == ClientState.SLEEPING:
+                        print("Waking up from SLEEP state.")
+                        self.telemetry_task = asyncio.create_task(self.telemetry_loop())
+                    elif not wake and self.telemetry_task:
+                        self.telemetry_task.cancel()
+                elif pdu.pdu_type == PDUType.WAKE: 
+                    pass
             except Exception as e:
                 print(f"Error processing PDU: {e}")
                 
@@ -75,8 +85,8 @@ class WTCPClientProtocol(QuicConnectionProtocol):
     async def send_telemetry(self):
         while self.state_machine.state == ClientState.OPERATIONAL:
             timestamp = int(time.time())
-            pdu = PDU.build_telemetry(self.session_id,timestamp, lat=0.0, lon=0.0,
-                                      activity=0, battery=100, diag_flags=0)
+            pdu = PDU.build_telemetry(self.session_id,timestamp, lat=3.0, lon=8.0,
+                                      activity=50, battery=90, diag_flags=6)
             sid = self.stream_for(pdu.pdu_type)
             print(f"Sending telemetry PDU on stream(ts= {timestamp}) {sid}: {pdu}")
             await self.send_pdu(pdu)
@@ -99,7 +109,7 @@ class WTCPClientProtocol(QuicConnectionProtocol):
     async def idle_watcher(self):
         while self.state_machine.state == ClientState.OPERATIONAL:
             await asyncio.sleep(1)
-            if time.time() - self.last_pdu_time > :
+            if time.time() - self.last_pdu_time > 120:
                 print("Idle timeout — sending TERMINATE")
                 await self.send_terminate()
                 break

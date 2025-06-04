@@ -8,7 +8,9 @@ class PDUType(Enum):
     TELEMETRY_REQUEST = 0x03
     CONTROL = 0x04
     EMERGENCY = 0x05
-    TERMINATE = 0x06
+    SLEEP = 0x06
+    WAKE = 0x07
+    TERMINATE = 0x08
     
 class PDU:
     """
@@ -90,6 +92,16 @@ class PDU:
         if new_radius is not None:
             tlv += struct.pack("!B B f", 0x02, 4, new_radius)
         return PDU(PDUType.CONTROL, version=1, session_id=session_id, payload=tlv)
+    
+    @staticmethod
+    def build_sleep(session_id: int, wake: bool = False) -> "PDU":
+        # No payload for sleep
+        return PDU(PDUType.SLEEP, version=1, session_id=session_id, payload=struct.pack("!B", 1 if wake else 0))
+    
+    @staticmethod
+    def build_wake(session_id: int) -> "PDU":
+        # No payload for wake
+        return PDU(PDUType.WAKE, version=1, session_id=session_id)
 
     @staticmethod
     def build_emergency(session_id:int, timestamp: int, alert_code: int, details: str="") -> "PDU":
@@ -133,3 +145,9 @@ class PDU:
         ts, code, dlen = struct.unpack("!Q B B", payload[:10])
         details = payload[10:10+dlen].decode("utf-8")
         return {"timestamp": ts, "alert_code": code, "details": details}
+    
+    @staticmethod
+    def parse_sleep(payload: bytes):
+        if len(payload) != 1:
+            raise ValueError("Invalid SLEEP PDU payload length")
+        return struct.unpack("!B", payload)[0] == 1  # Returns True for wake, False for sleep
