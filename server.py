@@ -20,7 +20,7 @@ class WTCPServerProtocol(QuicConnectionProtocol):
         self.state_machine = create_server_state_machine()
         self.telemetry = []
         self.emergencies = []
-        self.telemetry_file = telemetry_file
+        self.telemetry_file = "telemetry.csv" if telemetry_file is None else telemetry_file
         self.next_session = 1
         self.wake = asyncio.create_task(self.wake_loop())
 
@@ -91,7 +91,7 @@ class WTCPServerProtocol(QuicConnectionProtocol):
     def dump_telemetry(self):
         if  self.telemetry:
             # write a CSV of the parsed telemetry dicts
-            with open(self.telemetry_file, 'a', newline='') as f:
+            with open("telemetry.csv", "a", newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=self.telemetry[0].keys())
                 if f.tell() == 0:
                     writer.writeheader()
@@ -102,7 +102,7 @@ class WTCPServerProtocol(QuicConnectionProtocol):
                 wr = csv.DictWriter(f,self.emergencies[0].keys())
                 if f.tell()==0: wr.writeheader()
                 wr.writerows(self.emergencies)
-        print("CSV flushed.")
+                print(f"Emergencies written to emergency.csv")
         
 #interactive command line interface for server control
 async def stdin_cmd(server: WTCPServerProtocol):
@@ -119,9 +119,9 @@ async def stdin_cmd(server: WTCPServerProtocol):
         elif cmd == "g" and args:
             server.send_pdu(PDU.build_control(0,new_radius=float(args[0])))
         elif cmd == "sleep":
-            server.send_pdu(PDU.build_sleep_cmd(0,wake=False))
+            server.send_pdu(PDU.build_sleep(0,wake=False))
         elif cmd == "wake":
-            server.send_pdu(PDU.build_sleep_cmd(0,wake=True))
+            server.send_pdu(PDU.build_sleep(0,wake=True))
         else:
             print("Commands:  r <rate> | g <radius> | sleep | wake")
 
@@ -129,12 +129,13 @@ async def main():
     cfg = QuicConfiguration(is_client=False)
     cfg.load_cert_chain("cert.pem","key.pem")
     server_proto = None
-    async def factory(*a, **k):
+    def factory(*a, **k):
         nonlocal server_proto
-        server_proto = WTCPServerProtocol(*a, **k); return server_proto
+        server_proto = WTCPServerProtocol(*a, **k)
+        return server_proto
     await serve("0.0.0.0",4433,configuration=cfg,create_protocol=factory)
     print("WTCP server on :4433 — type 'help' for commands")
-    await stdin_cmd(server_proto)
+    await stdin_cmd(lambda:server_proto)
 
 if __name__ == "__main__":
     print("Starting WTCP server on port 4433...")
