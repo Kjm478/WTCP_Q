@@ -8,6 +8,7 @@ from aioquic.quic.configuration import QuicConfiguration
 from pdu import PDU, PDUType
 from state_machine import create_client_state_machine, ClientState, StateMachineError
 from aioquic.quic.events import StreamDataReceived
+from enum import Enum, auto
 
 STREAM_IDS = {
     "control": 0,
@@ -15,6 +16,12 @@ STREAM_IDS = {
     "emergency": 4,
 }
 
+class Value(Enum):
+    lat = auto()
+    battery = auto()
+    lon = auto()
+    activity = auto()
+    flag = auto()
 class WTCPClientProtocol(QuicConnectionProtocol):
     def __init__(self, *args, session_id, rate, **kwargs):
         super().__init__(*args, **kwargs)
@@ -85,8 +92,8 @@ class WTCPClientProtocol(QuicConnectionProtocol):
     async def send_telemetry(self):
         while self.state_machine.state == ClientState.OPERATIONAL:
             timestamp = int(time.time())
-            pdu = PDU.build_telemetry(self.session_id,timestamp, lat=3.0, lon=8.0,
-                                      activity=50, battery=90, diag_flags=6)
+            pdu = PDU.build_telemetry(self.session_id,timestamp, lat= float(Value.lat.value), lon=float(Value.lon.value),
+                                      activity=(Value.activity.value), battery=Value.battery.value, diag_flags=Value.flag.value)
             sid = self.stream_for(pdu.pdu_type)
             print(f"Sending telemetry PDU on stream(ts= {timestamp}) {sid}: {pdu}")
             await self.send_pdu(pdu)
