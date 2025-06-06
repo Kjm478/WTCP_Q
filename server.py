@@ -134,7 +134,7 @@ async def main():
         server_proto = WTCPServerProtocol(*a, **k)
         return server_proto
     await serve("0.0.0.0",4433,configuration=cfg,create_protocol=factory)
-    print("WTCP server on :4433 — type 'help' for commands")
+    print("WTCP server on :4433 —-type 'help' for commands")
     await stdin_cmd(lambda:server_proto)
 
 if __name__ == "__main__":
